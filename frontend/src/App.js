@@ -1,5 +1,5 @@
 // import logo from './logo.svg';
-import Payment from './components/Payment';
+import Payment from './components/Payment/Payment';
 import './App.css';
 
 function App() {

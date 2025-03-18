@@ -1,4 +1,5 @@
 import React from "react";
+import "./Payment.css"; // Add this import
 
 const PaymentComponent = ({ amount, orderId, currency }) => {
     const loadRazorpay = () => {
@@ -54,8 +55,10 @@ const PaymentComponent = ({ amount, orderId, currency }) => {
     };
 
     return (
-        <div>
-            <button onClick={initiatePayment}>Pay ₹{amount}</button>
+        <div className="payment-container">
+            <button className="payment-button" onClick={initiatePayment}>
+                Pay ₹{amount}
+            </button>
         </div>
     );
 };

@@ -34,6 +34,25 @@ app.post("/create-order", async (req, res) => {
     }
 });
 
+// Verify Payment
+app.post("/verify-payment", async (req, res) => {
+    try {
+        const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+        const generatedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(razorpay_order_id + "|" + razorpay_payment_id)
+            .digest("hex");
+
+        if (generatedSignature === razorpay_signature) {
+            res.json({ success: true, message: "Payment verified successfully" });
+        } else {
+            res.status(400).json({ success: false, message: "Invalid payment signature" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Handle Webhook Events (Payment Success, Failure, etc.)
 app.post("/webhook", (req, res) => {
     const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -58,6 +77,48 @@ app.post("/webhook", (req, res) => {
     }
 });
 
-// Start server
+// Get Payment Status
+app.get("/payment-status/:orderId", async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const order = await razorpay.orders.fetch(orderId);
+        res.json({ success: true, order });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Refund Payment
+app.post("/refund-payment", async (req, res) => {
+    try {
+        const { paymentId, amount } = req.body;
+        const refund = await razorpay.payments.refund(paymentId, { amount: amount * 100 });
+        res.json({ success: true, refund });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Retry Payment (Create new order for failed payments)
+app.post("/retry-payment", async (req, res) => {
+    try {
+        const { orderId } = req.body;
+        const order = await razorpay.orders.fetch(orderId);
+        
+        if (order.status !== "paid") {
+            const newOrder = await razorpay.orders.create({
+                amount: order.amount,
+                currency: order.currency,
+                receipt: `retry_${Date.now()}`,
+            });
+            res.json({ success: true, newOrder });
+        } else {
+            res.status(400).json({ success: false, message: "Order is already paid" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
